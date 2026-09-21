@@ -199,5 +199,42 @@ def api_futures():
     return jsonify({"has_sf": has_sf, "margins": margins})
 
 
+@app.route("/api/debug_probe")
+@login_required
+def api_debug_probe():
+    """暫時性診斷端點：直接打元大權證網 API，回傳原始 HTTP 狀態與內容片段，
+    用來判斷伺服器端（例如 Render）是否被目標網站擋下。確認問題後可移除此端點。"""
+    import json as _json
+    import urllib.parse as _urlparse
+
+    code = request.args.get("code", "2379").strip()
+    body = {
+        "format": "JSON",
+        "factor": {
+            "columns": core.API_COLS,
+            "condition": [
+                {"field": "FLD_UND_ID", "values": [str(code)]},
+                {"field": "FLD_WAR_TYPE", "values": ["1", "2"]},
+            ],
+            "orderby": {"field": "FLD_WAR_ID", "sort": "ASC"},
+        },
+        "pagination": {"row": 5, "page": "1"},
+        "callback": 1,
+    }
+    try:
+        r = api.sess.post(
+            core.API_URL,
+            data="data=" + _urlparse.quote(_json.dumps(body, ensure_ascii=False)),
+            timeout=20,
+        )
+        return jsonify({
+            "status_code": r.status_code,
+            "content_type": r.headers.get("Content-Type"),
+            "body_preview": r.text[:1500],
+        })
+    except Exception as e:
+        return jsonify({"exception": str(e)})
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="127.0.0.1", port=5000)
