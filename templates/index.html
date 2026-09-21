@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>權證雷達</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">◈ 權證雷達</div>
+  <div class="topbar-right">
+    <span id="clock"></span>
+    <a href="{{ url_for('logout') }}" class="linkbtn">登出</a>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside class="watchpanel">
+    <div class="panel-hd">自選股</div>
+    <form id="addForm" class="add-row">
+      <input id="codeInput" type="text" inputmode="numeric" placeholder="代號 Enter 新增" autocomplete="off">
+    </form>
+    <ul id="watchList" class="watchlist"></ul>
+    <div class="hint">點選查詢，長按/右鍵刪除</div>
+  </aside>
+
+  <main class="content">
+
+    <div class="infobar" id="infobar">
+      <span class="stock-name" id="stockName">← 新增或點選左側股票</span>
+      <span class="stock-price" id="stockPrice"></span>
+      <span class="stock-chg" id="stockChg"></span>
+      <span class="stock-vol" id="stockVol"></span>
+      <span class="stock-sf" id="stockSf"></span>
+    </div>
+
+    <div class="filterbar">
+      <label class="wtype">
+        別
+        <select id="wtype">
+          <option value="認購" selected>認購</option>
+          <option value="認售">認售</option>
+          <option value="全部">全部</option>
+        </select>
+      </label>
+      <div id="condBtns" class="cond-btns"></div>
+      <button id="showAllBtn" class="btn btn-ghost">全部顯示</button>
+      <div class="spacer"></div>
+      <button id="colBtn" class="btn btn-ghost">⚙ 欄位</button>
+      <button id="condSettingsBtn" class="btn btn-accent">⚙ 篩選條件設定</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="table">
+        <thead><tr id="theadRow"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="statusline" id="statusline">就緒</div>
+  </main>
+</div>
+
+<!-- 篩選條件設定 Modal -->
+<div id="condModal" class="modal hidden">
+  <div class="modal-box modal-lg">
+    <div class="modal-hd">
+      <span>篩選條件設定</span>
+      <button class="modal-x" data-close="condModal">✕</button>
+    </div>
+    <div class="tabs" id="condTabs"></div>
+    <div id="condTabBody"></div>
+    <div class="modal-ft">
+      <button id="condSaveBtn" class="btn btn-accent">儲存所有條件</button>
+    </div>
+  </div>
+</div>
+
+<!-- 欄位設定 Modal -->
+<div id="colModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <span>欄位顯示設定</span>
+      <button class="modal-x" data-close="colModal">✕</button>
+    </div>
+    <div id="colList" class="col-list"></div>
+    <div class="modal-ft">
+      <button id="colSaveBtn" class="btn btn-accent">套用</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.FIELD_META   = {{ field_meta | tojson }};
+  window.COL_TIPS     = {{ col_tips | tojson }};
+  window.FREE_COLS    = {{ free_cols | tojson }};
+  window.DEF_CONDITIONS = {{ def_conditions | tojson }};
+</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
