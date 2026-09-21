@@ -3,11 +3,41 @@
 從桌面版 搜尋.py 移植，去除所有 Tkinter/GUI 相依，供 Flask 後端使用。
 """
 import math
+import os
 import statistics
 import urllib.parse
 import json
 
 import requests
+
+# ──────────────────────────────────────────────────────────────────
+#  TLS 憑證處理
+#  某些雲端主機（如 Render）的 OpenSSL 版本對元大權證網（TWCA 簽發）的憑證鏈
+#  驗證較嚴格，會出現 CERTIFICATE_VERIFY_FAILED（本機 Windows 不會發生）。
+#  預設改用釘選的 TWCA 憑證鏈（certs/twca_chain.pem）驗證，比直接關閉驗證安全；
+#  若仍失敗，可在部署環境設定環境變數 WARRANT_INSECURE_TLS=1 當最後手段停用驗證。
+# ──────────────────────────────────────────────────────────────────
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_CA_BUNDLE = os.path.join(_HERE, "certs", "twca_chain.pem")
+_INSECURE_TLS = os.environ.get("WARRANT_INSECURE_TLS") == "1"
+if _INSECURE_TLS:
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def _tls_verify():
+    if _INSECURE_TLS:
+        return False
+    if os.path.exists(_CA_BUNDLE):
+        return _CA_BUNDLE
+    return True
+
+
+def _generic_verify():
+    """給非元大權證網的請求（期交所等）用：預設沿用系統信任庫，
+    只有在 WARRANT_INSECURE_TLS=1 時才一併停用驗證。"""
+    return False if _INSECURE_TLS else True
+
 
 # ──────────────────────────────────────────────────────────────────
 #  權證 API
@@ -39,6 +69,7 @@ class WarrantAPI:
     def __init__(self):
         self.sess = requests.Session()
         self.sess.headers.update(HDRS)
+        self.sess.verify = _tls_verify()
 
     def fetch_all(self, stock_no, war_types):
         rows, page = [], 1
@@ -94,7 +125,7 @@ class MarginAPI:
             return
         self.stock_rows, self.etf_rows = {}, {}
         try:
-            resp = requests.get(MARGIN_STOCK_URL, timeout=10)
+            resp = requests.get(MARGIN_STOCK_URL, timeout=10, verify=_generic_verify())
             try:
                 # 期交所 open API 正常應回傳 JSON
                 for row in resp.json():
@@ -113,7 +144,7 @@ class MarginAPI:
         except Exception as e:
             print(f"[margin stock] {e}")
         try:
-            for row in requests.get(MARGIN_ETF_URL, timeout=10).json():
+            for row in requests.get(MARGIN_ETF_URL, timeout=10, verify=_generic_verify()).json():
                 self.etf_rows.setdefault(row.get("UnderlyingSecurityCode", ""), []).append(row)
         except Exception as e:
             print(f"[margin etf] {e}")
@@ -158,6 +189,7 @@ def check_stock_futures(code, price, margin_api: MarginAPI):
             params={"commodity_id": "SF"},
             timeout=8,
             headers={"User-Agent": "Mozilla/5.0"},
+            verify=_generic_verify(),
         )
         has_sf = code in r.text
         margins = margin_api.get_margin(code, price) if has_sf else []
